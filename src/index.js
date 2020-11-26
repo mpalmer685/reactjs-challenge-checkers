@@ -1,9 +1,14 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
+import { ThemeProvider } from 'styled-components/macro'
+import theme from './theme'
+import CheckersGame from './components/CheckersGame'
 
 ReactDOM.render(
     <React.StrictMode>
-        <h1>Test</h1>
+        <ThemeProvider theme={theme}>
+            <CheckersGame />
+        </ThemeProvider>
     </React.StrictMode>,
     document.getElementById('root')
 )
