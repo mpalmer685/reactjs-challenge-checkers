@@ -12,13 +12,15 @@ import GameContext from './GameContext'
 
 const Globals = createGlobalStyle`
   body {
-    background-color: #730000;
+    background-color: #00731d;
     font-family: sans-serif;
+    margin: 0;
   }
 `
 
 const Title = styled.h1`
     color: white;
+    text-align: center;
 `
 
 const GameStateDisplay = styled.h2`
@@ -44,7 +46,6 @@ function getInitialState(board) {
 function createAction(type) {
     const actionCreator = payload => ({ type, payload })
     actionCreator.type = type
-    actionCreator.toString = () => `${type}`
 
     return actionCreator
 }
@@ -85,13 +86,9 @@ function CheckersGame() {
     const boardRef = useRef(new GameBoard())
     const board = boardRef.current
     const [
-        { currentPlayer, pieces, startPosition, gameState },
+        { currentPlayer, pieces, startPosition, gameState, winner },
         dispatch,
     ] = useReducer(gameReducer, board, getInitialState)
-    // const [currentPlayer, setCurrentPlayer] = useState<Player>('black')
-    // const [pieces, setPieces] = useState(() => board.getPieces())
-    // const [startPosition, setStartPosition] = useState<Position | null>(null)
-    // const [gameState, setGameState] = useState<GameState>(GameState.inProgress)
 
     const movesForCurrentPlayer = useMemo(
         () => board.availableMovesForPlayer(currentPlayer),
@@ -122,26 +119,22 @@ function CheckersGame() {
                 if (pieceAtPosition?.player === currentPlayer) {
                     dispatch(setStartPosition(selectedPosition))
                 }
+            } else if (positionsAreEqual(selectedPosition, startPosition)) {
+                dispatch(setStartPosition(null))
+            } else if (pieceAtPosition?.player === currentPlayer) {
+                dispatch(setStartPosition(selectedPosition))
             } else {
-                if (positionsAreEqual(selectedPosition, startPosition)) {
-                    dispatch(setStartPosition(null))
-                } else if (pieceAtPosition?.player === currentPlayer) {
-                    dispatch(setStartPosition(selectedPosition))
-                } else {
-                    const move = movesForCurrentPlayer.find(
-                        ({ from, to, jumps }) =>
-                            positionsAreEqual(to, selectedPosition) &&
-                            (jumps && jumps.length > 0
-                                ? positionsAreEqual(jumps[0], startPosition)
-                                : positionsAreEqual(from, startPosition))
+                const move = movesForCurrentPlayer.find(
+                    ({ from, to, jumps }) =>
+                        positionsAreEqual(to, selectedPosition) &&
+                        (jumps && jumps.length > 0
+                            ? positionsAreEqual(jumps[0], startPosition)
+                            : positionsAreEqual(from, startPosition))
+                )
+                if (move) {
+                    dispatch(
+                        makeMove(board.makeMove(move, movesForCurrentPlayer))
                     )
-                    if (move) {
-                        dispatch(
-                            makeMove(
-                                board.makeMove(move, movesForCurrentPlayer)
-                            )
-                        )
-                    }
                 }
             }
         },
@@ -157,18 +150,38 @@ function CheckersGame() {
         <>
             <Globals />
             <GameContext.Provider value={contextValue}>
-                <div>
+                <div
+                    css={{
+                        height: '100vh',
+                        width: '100vw',
+                        display: 'flex',
+                        flexDirection: 'column',
+                    }}
+                >
                     <Title>Checkers</Title>
-                    <GameStateDisplay>
-                        {gameState === GameState.inProgress && (
-                            <span>Current player: {currentPlayer}</span>
-                        )}
-                        {gameState === GameState.draw && <span>Draw!</span>}
-                        {gameState === GameState.win && (
-                            <span>{getOpponent(currentPlayer)} wins!</span>
-                        )}
-                    </GameStateDisplay>
-                    <Board />
+                    <div
+                        css={{
+                            flex: 1,
+                            display: 'flex',
+                            flexDirection: 'row-reverse',
+                            padding: 20,
+                        }}
+                    >
+                        <div css={{ flex: 1, paddingLeft: 20 }}>
+                            <GameStateDisplay>
+                                {gameState === GameState.inProgress && (
+                                    <span>Current player: {currentPlayer}</span>
+                                )}
+                                {gameState === GameState.draw && (
+                                    <span>Draw!</span>
+                                )}
+                                {gameState === GameState.win && (
+                                    <span>{winner} wins!</span>
+                                )}
+                            </GameStateDisplay>
+                        </div>
+                        <Board />
+                    </div>
                 </div>
             </GameContext.Provider>
         </>
