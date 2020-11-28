@@ -1,3 +1,5 @@
+import cloneDeep from 'lodash/cloneDeep'
+
 export function position(row, column) {
     return { row, column }
 }
@@ -27,13 +29,12 @@ const KingRow = {
 
 export class GameBoard {
     static fromState(state) {
-        const board = new GameBoard()
-        board.state = parseState(state)
-        return board
+        const boardState = parseState(state)
+        return new GameBoard(boardState)
     }
 
-    constructor() {
-        this.state = setUpBoard()
+    constructor(state = setUpBoard()) {
+        this.state = cloneDeep(state)
     }
 
     getState() {

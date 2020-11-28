@@ -7,6 +7,7 @@ import React, {
 } from 'react'
 import styled, { createGlobalStyle } from 'styled-components/macro'
 import { GameBoard, getOpponent, positionsAreEqual } from '../models/gameBoard'
+import ArtificialPlayer, { Strategy } from '../models/ArtificialPlayer'
 import Board from './Board'
 import GameContext from './GameContext'
 
@@ -50,31 +51,46 @@ function createAction(type) {
     return actionCreator
 }
 
-const endGame = createAction('endGame')
 const setStartPosition = createAction('setStartPosition')
 const makeMove = createAction('makeMove')
 const reset = createAction('reset')
 
 function gameReducer(state, { type, payload }) {
     switch (type) {
-        case endGame.type:
-            return {
-                ...state,
-                gameState: payload,
-                winner:
-                    payload === GameState.win
-                        ? getOpponent(state.currentPlayer)
-                        : null,
-            }
         case setStartPosition.type:
             return { ...state, startPosition: payload }
-        case makeMove.type:
-            return {
+        case makeMove.type: {
+            const { board, move } = payload
+            const pieces = board.makeMove(
+                move,
+                state.availableMovesForCurrentPlayer
+            )
+            const opponent = state.currentPlayer
+            const currentPlayer = getOpponent(state.currentPlayer)
+            const availableMovesForCurrentPlayer = board.availableMovesForPlayer(
+                currentPlayer
+            )
+
+            const nextState = {
                 ...state,
-                pieces: payload,
-                currentPlayer: getOpponent(state.currentPlayer),
+                pieces,
+                currentPlayer,
+                availableMovesForCurrentPlayer,
                 startPosition: null,
             }
+
+            if (availableMovesForCurrentPlayer.length === 0) {
+                const movesForOpponent = board.availableMovesForPlayer(opponent)
+                if (movesForOpponent.length === 0) {
+                    nextState.gameState = GameState.draw
+                } else {
+                    nextState.gameState = GameState.win
+                    nextState.winner = opponent
+                }
+            }
+
+            return nextState
+        }
         case reset.type:
             return getInitialState(payload)
         default:
@@ -83,35 +99,41 @@ function gameReducer(state, { type, payload }) {
 }
 
 function CheckersGame() {
+    const aiPlayer = useRef(new ArtificialPlayer('black', Strategy.medium))
     const boardRef = useRef(new GameBoard())
     const board = boardRef.current
     const [
-        { currentPlayer, pieces, startPosition, gameState, winner },
+        {
+            currentPlayer,
+            availableMovesForCurrentPlayer,
+            pieces,
+            startPosition,
+            gameState,
+            winner,
+        },
         dispatch,
     ] = useReducer(gameReducer, board, getInitialState)
 
-    const movesForCurrentPlayer = useMemo(
-        () => board.availableMovesForPlayer(currentPlayer),
-        [currentPlayer, board]
-    )
-
     useEffect(() => {
-        if (movesForCurrentPlayer.length === 0) {
-            const movesForOpponent = board.availableMovesForPlayer(
-                getOpponent(currentPlayer)
-            )
-            dispatch(
-                endGame(
-                    movesForOpponent.length === 0
-                        ? GameState.draw
-                        : GameState.win
-                )
-            )
+        if (
+            currentPlayer === aiPlayer.current.player &&
+            gameState === GameState.inProgress
+        ) {
+            aiPlayer.current
+                .getNextMove(boardRef.current)
+                .then(({ move, moves }) => {
+                    console.log(move, moves)
+                    dispatch(makeMove({ board, move }))
+                })
         }
-    }, [movesForCurrentPlayer, board, currentPlayer])
+    }, [currentPlayer, board, gameState])
 
     const selectSquare = useCallback(
         (row, column) => {
+            if (aiPlayer.current && currentPlayer === aiPlayer.current.player) {
+                return
+            }
+
             const selectedPosition = { row, column }
             const pieceAtPosition = board.getPieceAtPosition(selectedPosition)
 
@@ -124,7 +146,7 @@ function CheckersGame() {
             } else if (pieceAtPosition?.player === currentPlayer) {
                 dispatch(setStartPosition(selectedPosition))
             } else {
-                const move = movesForCurrentPlayer.find(
+                const move = availableMovesForCurrentPlayer.find(
                     ({ from, to, jumps }) =>
                         positionsAreEqual(to, selectedPosition) &&
                         (jumps && jumps.length > 0
@@ -132,18 +154,21 @@ function CheckersGame() {
                             : positionsAreEqual(from, startPosition))
                 )
                 if (move) {
-                    dispatch(
-                        makeMove(board.makeMove(move, movesForCurrentPlayer))
-                    )
+                    dispatch(makeMove({ board, move }))
                 }
             }
         },
-        [startPosition, board, currentPlayer, movesForCurrentPlayer]
+        [startPosition, board, currentPlayer, availableMovesForCurrentPlayer]
     )
 
     const contextValue = useMemo(
-        () => ({ pieces, movesForCurrentPlayer, startPosition, selectSquare }),
-        [pieces, movesForCurrentPlayer, startPosition, selectSquare]
+        () => ({
+            pieces,
+            movesForCurrentPlayer: availableMovesForCurrentPlayer,
+            startPosition,
+            selectSquare,
+        }),
+        [pieces, availableMovesForCurrentPlayer, startPosition, selectSquare]
     )
 
     return (
