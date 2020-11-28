@@ -2,6 +2,7 @@
   "name": "reactjs-challenge-checkers",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://mpalmer685.github.io/reactjs-challenge-checkers",
   "scripts": {
     "predeploy": "yarn run build",
     "deploy": "gh-pages -d build",
