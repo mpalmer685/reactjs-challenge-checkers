@@ -122,7 +122,6 @@ function CheckersGame() {
             aiPlayer.current
                 .getNextMove(boardRef.current)
                 .then(({ move, moves }) => {
-                    console.log(move, moves)
                     dispatch(makeMove({ board, move }))
                 })
         }
